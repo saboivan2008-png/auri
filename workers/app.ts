@@ -31,54 +31,31 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(env) });
     const url = new URL(request.url);
 
+    if (url.pathname === '/') {
+      return new Response('<meta http-equiv="refresh" content="0; url=/console">', { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    }
+
+    if (url.pathname === '/console') {
+      return new Response(`<!doctype html><html lang="sk"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AURA Console</title><style>body{font-family:system-ui;max-width:720px;margin:40px auto;padding:20px;background:#111;color:#eee}textarea,input,button{width:100%;box-sizing:border-box;margin:8px 0;padding:12px;border-radius:10px;border:1px solid #444;background:#1d1d1d;color:#fff}button{cursor:pointer;background:#fff;color:#111;font-weight:700}pre{white-space:pre-wrap;background:#181818;padding:14px;border-radius:10px}</style><h1>AURA</h1><p>Live agent console</p><input id="token" type="password" placeholder="AURA API token"><textarea id="task" rows="6" placeholder="Zadaj úlohu AURE..."></textarea><button id="run">Spustiť AURU</button><pre id="out">Pripravená.</pre><script>const $=id=>document.getElementById(id);$('run').onclick=async()=>{const token=$('token').value.trim(),task=$('task').value.trim();if(!token||!task){$('out').textContent='Vyplň token a úlohu.';return}$('out').textContent='AURA pracuje…';try{const r=await fetch('/api/agent',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+token},body:JSON.stringify({task})});const d=await r.json();$('out').textContent=JSON.stringify(d,null,2)}catch(e){$('out').textContent='Chyba spojenia: '+e.message}}</script></html>`, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    }
+
     if (url.pathname === '/health') {
-      return json({
-        ok: true,
-        service: 'AURA',
-        runtime: 'cloudflare-workers',
-        aiConfigured: Boolean(env.OPENAI_API_KEY),
-        agentApiProtected: Boolean(env.AURA_API_TOKEN),
-        model: env.AURA_MODEL || 'gpt-5.6',
-      }, env);
+      return json({ ok: true, service: 'AURA', runtime: 'cloudflare-workers', aiConfigured: Boolean(env.OPENAI_API_KEY), agentApiProtected: Boolean(env.AURA_API_TOKEN), model: env.AURA_MODEL || 'gpt-5.6' }, env);
     }
 
     if (url.pathname === '/api/agent' && request.method === 'POST') {
-      if (!env.OPENAI_API_KEY) {
-        return json({ ok: false, error: 'AURA AI is not configured.' }, env, 503);
-      }
-      if (!authorized(request, env)) {
-        return json({ ok: false, error: 'Unauthorized.' }, env, 401);
-      }
-
+      if (!env.OPENAI_API_KEY) return json({ ok: false, error: 'AURA AI is not configured.' }, env, 503);
+      if (!authorized(request, env)) return json({ ok: false, error: 'Unauthorized.' }, env, 401);
       const body = await request.json().catch(() => null) as { task?: unknown } | null;
       const task = typeof body?.task === 'string' ? body.task.trim() : '';
       if (!task) return json({ ok: false, error: 'task is required' }, env, 400);
       if (task.length > 12000) return json({ ok: false, error: 'task is too large' }, env, 413);
-
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${env.OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: env.AURA_MODEL || 'gpt-5.6',
-          input: [
-            {
-              role: 'system',
-              content: 'You are AURA, an AI business agent. Plan tasks clearly, use connected tools only when configured, and never execute financial or irreversible actions without explicit owner approval.',
-            },
-            { role: 'user', content: task },
-          ],
-        }),
-      });
-
+      const response = await fetch('https://api.openai.com/v1/responses', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: JSON.stringify({ model: env.AURA_MODEL || 'gpt-5.6', input: [{ role: 'system', content: 'You are AURA, an AI business agent. Plan tasks clearly, use connected tools only when configured, and never execute financial or irreversible actions without explicit owner approval.' }, { role: 'user', content: task }] }) });
       const data = await response.json().catch(() => ({})) as Record<string, unknown>;
       if (!response.ok) return json({ ok: false, error: 'AI provider request failed.' }, env, response.status);
-
       return json({ ok: true, agent: 'AURA', response: data }, env);
     }
 
-    return json({ ok: true, service: 'AURA', message: 'AURA runtime online', endpoints: ['/health', '/api/agent'] }, env);
+    return json({ ok: true, service: 'AURA', message: 'AURA runtime online', endpoints: ['/health', '/console', '/api/agent'] }, env);
   },
 };
