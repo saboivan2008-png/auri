@@ -9,7 +9,7 @@ const TOOL_CATALOG = [
   { id:'cloudflare', name:'Cloudflare', purpose:'production runtime and deployment', requiresApproval:true },
   { id:'replit', name:'Replit', purpose:'development and secondary runtime', requiresApproval:true },
 ];
-function corsHeaders(env:Env){return {'Access-Control-Allow-Origin':env.AURA_ALLOWED_ORIGIN||'*','Access-Control-Allow-Headers':'content-type, authorization','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Vary':'Origin'}}
+function corsHeaders(env:Env){return {'Access-Control-Allow-Origin':env.AURA_ALLOWED_ORIGIN||'https://auri.space','Access-Control-Allow-Headers':'content-type, authorization','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Vary':'Origin'}}
 function json(data:unknown,env:Env,status=200){return new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...corsHeaders(env)}})}
 function authorized(request:Request,env:Env){const header=request.headers.get('authorization')||'';return Boolean(env.AURA_API_TOKEN)&&header===`Bearer ${env.AURA_API_TOKEN}`}
 const SYSTEM_PROMPT=`You are AURA, an AI business agent. Turn the owner's goal into an actionable plan. Be concise and operational. You may recommend tools from the connected-tool catalog, but never claim a tool action actually happened unless the runtime confirms it. Financial, trading, payment, messaging, deployment, deletion, or other irreversible actions always require explicit owner approval.`;
