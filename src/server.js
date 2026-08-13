@@ -1,7 +1,23 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
+import { secureHeaders } from 'hono/secure-headers';
 
 const app = new Hono();
+
+app.use('*', secureHeaders({
+  contentSecurityPolicy: {
+    defaultSrc: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    scriptSrc: ["'self'"],
+    imgSrc: ["'self'", 'data:'],
+    connectSrc: ["'self'", 'https://api.openai.com'],
+    frameAncestors: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    upgradeInsecureRequests: [],
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
 function authorized(c) {
   const configured = process.env.AURA_API_TOKEN;
